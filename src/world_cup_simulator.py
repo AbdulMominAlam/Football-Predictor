@@ -1051,16 +1051,25 @@ def simulate_tournament(
         print("===================================")
 
         print("\nGroup Winners:")
-        for team in qualified["group_winners"]:
-            print(f"- {team}")
+        for qualifier in qualified["group_winners"]:
+            print(
+                f"- {qualifier['group']}1: "
+                f"{qualifier['team']}"
+            )
 
         print("\nRunners-up:")
-        for team in qualified["runners_up"]:
-            print(f"- {team}")
+        for qualifier in qualified["runners_up"]:
+            print(
+                f"- {qualifier['group']}2: "
+                f"{qualifier['team']}"
+            )
 
         print("\nBest Third-Place Teams:")
-        for team in qualified["best_third_place"]:
-            print(f"- {team}")
+        for qualifier in qualified["best_third_place"]:
+            print(
+                f"- {qualifier['group']}3: "
+                f"{qualifier['team']}"
+            )
 
         print(
             f"\nTotal Qualified Teams: "
@@ -1068,6 +1077,8 @@ def simulate_tournament(
         )
 
     # ---------------- Round of 32 ----------------
+
+    return None, None
 
     round_of_32_matches = create_round_of_32(
         qualified["all_qualified"]
