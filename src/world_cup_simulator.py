@@ -2,93 +2,105 @@ from collections import defaultdict, deque
 import random
 from itertools import combinations
 from qualification import get_qualified_teams
-from knockout_stage import (
-    create_round_of_32,
-    create_next_round_matches,
-)
+from knockout_stage import create_next_round_matches, create_round_of_32
 from predict import (
     build_current_team_states,
     create_prediction_features,
-    find_team_name,
     load_match_data,
     load_model,
     predict_match,
 )
 from features import FORM_WINDOW, INITIAL_ELO
+from world_cup_groups import WORLD_CUP_2026_GROUPS
 from world_cup_teams import WORLD_CUP_2026_TEAMS
 
-tournament_teams = WORLD_CUP_2026_TEAMS
-
-NUMBER_OF_TEAMS = 48
+GROUP_NAMES = list("ABCDEFGHIJKL")
 TEAMS_PER_GROUP = 4
-
-GROUP_NAMES = [
-    "A", "B", "C", "D",
-    "E", "F", "G", "H",
-    "I", "J", "K", "L"
-]
+NUMBER_OF_TEAMS = 48
 
 
-def ask_for_teams(known_teams):
+
+def validate_fixed_groups(groups, tournament_teams):
     """
-    Ask the user to enter 16 valid and unique teams.
+    Validate the fixed tournament draw.
+
+    Checks:
+    - Groups are A through L.
+    - Every group has four teams.
+    - There are 48 unique teams.
+    - The groups contain exactly the teams listed in world_cup_teams.py.
     """
 
-    selected_teams = []
+    if list(groups) != GROUP_NAMES:
+        raise ValueError("Groups must be ordered from A through L.")
 
-    print(
-        f"\nEnter {NUMBER_OF_TEAMS} teams for the tournament.\n"
-    )
+    for group_name, teams in groups.items():
+        if len(teams) != TEAMS_PER_GROUP:
+            raise ValueError(
+                f"Group {group_name} must contain exactly "
+                f"{TEAMS_PER_GROUP} teams."
+            )
 
-    while len(selected_teams) < NUMBER_OF_TEAMS:
-        team_number = len(selected_teams) + 1
+    grouped_teams = [
+        team
+        for teams in groups.values()
+        for team in teams
+    ]
 
-        user_input = input(
-            f"Enter team {team_number}: "
-        ).strip()
-
-        matched_team = find_team_name(
-            user_input,
-            known_teams,
+    if len(grouped_teams) != NUMBER_OF_TEAMS:
+        raise ValueError(
+            f"The groups must contain exactly {NUMBER_OF_TEAMS} teams."
         )
 
-        if matched_team is None:
-            print(
-                f"Team '{user_input}' was not found "
-                "in the dataset.\n"
+    duplicates = sorted(
+        team
+        for team in set(grouped_teams)
+        if grouped_teams.count(team) > 1
+    )
+
+    if duplicates:
+        raise ValueError(
+            "Each team may appear only once. Duplicate teams: "
+            + ", ".join(duplicates)
+        )
+
+    if len(tournament_teams) != NUMBER_OF_TEAMS:
+        raise ValueError(
+            f"WORLD_CUP_2026_TEAMS must contain exactly "
+            f"{NUMBER_OF_TEAMS} teams."
+        )
+
+    if len(set(tournament_teams)) != NUMBER_OF_TEAMS:
+        raise ValueError(
+            "WORLD_CUP_2026_TEAMS contains duplicate teams."
+        )
+
+    missing_from_groups = sorted(
+        set(tournament_teams) - set(grouped_teams)
+    )
+    extra_in_groups = sorted(
+        set(grouped_teams) - set(tournament_teams)
+    )
+
+    if missing_from_groups or extra_in_groups:
+        details = []
+
+        if missing_from_groups:
+            details.append(
+                "Missing from groups: "
+                + ", ".join(missing_from_groups)
             )
-            continue
 
-        if matched_team in selected_teams:
-            print(
-                f"{matched_team} has already been added.\n"
+        if extra_in_groups:
+            details.append(
+                "Not listed in world_cup_teams.py: "
+                + ", ".join(extra_in_groups)
             )
-            continue
 
-        selected_teams.append(matched_team)
-
-    return selected_teams
-
-
-def create_groups(teams):
-    """
-    Randomly divide 16 teams into four groups.
-    """
-
-    shuffled_teams = teams.copy()
-    random.shuffle(shuffled_teams)
-
-    groups = {}
-
-    for group_index, group_name in enumerate(GROUP_NAMES):
-        start_index = group_index * TEAMS_PER_GROUP
-        end_index = start_index + TEAMS_PER_GROUP
-
-        groups[group_name] = shuffled_teams[
-            start_index:end_index
-        ]
-
-    return groups
+        raise ValueError(
+            "world_cup_groups.py and world_cup_teams.py do not match. "
+            + " | ".join(details)
+        )
 
 
 def display_groups(groups):
@@ -411,15 +423,6 @@ def update_group_table(
         )
 
 
-
-
-
-
-
-
-
-
-
 def update_tournament_state(
     home_team,
     away_team,
@@ -536,11 +539,6 @@ def update_tournament_state(
     )
 
 
-
-
-
-
-
 def rank_group(table):
     """
     Rank teams using:
@@ -563,12 +561,6 @@ def rank_group(table):
     )
 
     return ranked_teams
-
-
-
-
-
-
 
 
 def display_group_table(group_name, ranked_teams):
@@ -609,12 +601,6 @@ def display_group_table(group_name, ranked_teams):
             f"{stats['goal_difference']:>5}"
             f"{stats['points']:>6}"
         )
-
-
-
-
-
-
 
 
 def simulate_group(
@@ -680,13 +666,6 @@ def simulate_group(
     return ranked_teams
 
 
-
-
-
-
-
-
-
 def choose_winner_after_draw(
     home_team,
     away_team,
@@ -715,14 +694,6 @@ def choose_winner_after_draw(
         return home_team
 
     return away_team
-
-
-
-
-
-
-
-
 
 
 def simulate_knockout_match(
@@ -851,56 +822,6 @@ def simulate_knockout_match(
     return winner
 
 
-def create_quarterfinal_matches(group_results):
-    """
-    Create quarterfinal matchups.
-
-    Group winners play runners-up from other groups.
-    """
-
-    group_a_winner = group_results["A"][0][0]
-    group_a_runner_up = group_results["A"][1][0]
-
-    group_b_winner = group_results["B"][0][0]
-    group_b_runner_up = group_results["B"][1][0]
-
-    group_c_winner = group_results["C"][0][0]
-    group_c_runner_up = group_results["C"][1][0]
-
-    group_d_winner = group_results["D"][0][0]
-    group_d_runner_up = group_results["D"][1][0]
-
-    quarterfinal_matches = [
-        (
-            group_a_winner,
-            group_b_runner_up,
-        ),
-        (
-            group_c_winner,
-            group_d_runner_up,
-        ),
-        (
-            group_b_winner,
-            group_a_runner_up,
-        ),
-        (
-            group_d_winner,
-            group_c_runner_up,
-        ),
-    ]
-
-    return quarterfinal_matches
-
-
-
-
-
-
-
-
-
-
-
 def simulate_knockout_round(
     matches,
     round_name,
@@ -935,52 +856,6 @@ def simulate_knockout_round(
         winners.append(winner)
 
     return winners
-
-
-
-
-
-
-
-def create_semifinal_matches(quarterfinal_winners):
-    """
-    Create two semifinal matches.
-    """
-
-    return [
-        (
-            quarterfinal_winners[0],
-            quarterfinal_winners[1],
-        ),
-        (
-            quarterfinal_winners[2],
-            quarterfinal_winners[3],
-        ),
-    ]
-
-
-
-
-
-
-
-
-def create_final_match(semifinal_winners):
-    """
-    Create the final match.
-    """
-
-    return [
-        (
-            semifinal_winners[0],
-            semifinal_winners[1],
-        )
-    ]
-
-
-
-
-
 
 
 def simulate_tournament(
@@ -1021,9 +896,14 @@ def simulate_tournament(
         dict(base_elo_ratings),
     )
 
-    groups = create_groups(
-        tournament_teams
+    validate_fixed_groups(
+        groups=WORLD_CUP_2026_GROUPS,
+        tournament_teams=tournament_teams,
     )
+    groups = {
+        group_name: teams.copy()
+        for group_name, teams in WORLD_CUP_2026_GROUPS.items()
+    }
 
     if show_output:
         display_groups(groups)
@@ -1078,11 +958,7 @@ def simulate_tournament(
 
     # ---------------- Round of 32 ----------------
 
-    return None, None
-
-    round_of_32_matches = create_round_of_32(
-        qualified["all_qualified"]
-    )
+    round_of_32_matches = create_round_of_32(qualified)
 
     round_of_32_winners = simulate_knockout_round(
         matches=round_of_32_matches,
@@ -1179,8 +1055,6 @@ def simulate_tournament(
     return champion, runner_up
 
 
-
-
 def ensure_minimum_team_history(
     tournament_teams,
     histories,
@@ -1219,8 +1093,6 @@ def ensure_minimum_team_history(
             elo_ratings[team] = INITIAL_ELO
 
 
-
-
 def main():
     print(
         "\nLoading model and historical match data..."
@@ -1238,7 +1110,7 @@ def main():
         match_data
     )
 
-    tournament_teams = WORLD_CUP_2026_TEAMS
+    tournament_teams = WORLD_CUP_2026_TEAMS.copy()
 
     ensure_minimum_team_history(
         tournament_teams=tournament_teams,

@@ -1,13 +1,11 @@
 def get_qualified_teams(group_results):
     """
-    Select the 32 teams that qualify from the group stage.
+    Select the 32 teams that advance from the group stage.
 
     Qualification:
-    - Top two teams from each of the 12 groups = 24 teams
-    - Best eight third-place teams = 8 teams
-
-    Each qualifier keeps its group and finishing position so
-    the official Round-of-32 bracket can be created later.
+    - 12 group winners
+    - 12 runners-up
+    - 8 best third-place teams
     """
 
     group_winners = []
@@ -15,13 +13,6 @@ def get_qualified_teams(group_results):
     third_place_candidates = []
 
     for group_name, ranked_teams in group_results.items():
-        # ranked_teams contains:
-        # [
-        #     (team_name, statistics),
-        #     (team_name, statistics),
-        #     ...
-        # ]
-
         winner_team, winner_stats = ranked_teams[0]
         runner_up_team, runner_up_stats = ranked_teams[1]
         third_team, third_stats = ranked_teams[2]
@@ -53,18 +44,16 @@ def get_qualified_teams(group_results):
             }
         )
 
-    # Rank all 12 third-place teams.
     third_place_candidates.sort(
-        key=lambda entry: (
-            entry["stats"]["points"],
-            entry["stats"]["goal_difference"],
-            entry["stats"]["goals_for"],
-            entry["team"],
+        key=lambda qualifier: (
+            qualifier["stats"]["points"],
+            qualifier["stats"]["goal_difference"],
+            qualifier["stats"]["goals_for"],
+            qualifier["team"],
         ),
         reverse=True,
     )
 
-    # Only the best eight third-place teams qualify.
     best_third_place = third_place_candidates[:8]
 
     all_qualified = (
@@ -72,6 +61,11 @@ def get_qualified_teams(group_results):
         + runners_up
         + best_third_place
     )
+
+    if len(all_qualified) != 32:
+        raise ValueError(
+            f"Exactly 32 teams must qualify, found {len(all_qualified)}."
+        )
 
     return {
         "group_winners": group_winners,
