@@ -1,7 +1,11 @@
 from collections import defaultdict, deque
 import random
 from itertools import combinations
-
+from qualification import get_qualified_teams
+from knockout_stage import (
+    create_round_of_32,
+    create_next_round_matches,
+)
 from predict import (
     build_current_team_states,
     create_prediction_features,
@@ -11,7 +15,9 @@ from predict import (
     predict_match,
 )
 from features import FORM_WINDOW, INITIAL_ELO
+from world_cup_teams import WORLD_CUP_2026_TEAMS
 
+tournament_teams = WORLD_CUP_2026_TEAMS
 
 NUMBER_OF_TEAMS = 48
 TEAMS_PER_GROUP = 4
@@ -561,61 +567,6 @@ def rank_group(table):
 
 
 
-def get_qualified_teams(group_results):
-    """
-    Select the 32 teams that qualify for the knockout stage.
-
-    Qualification:
-    - Top 2 teams from each of the 12 groups
-    - Best 8 third-place teams
-    """
-
-    group_winners = []
-    runners_up = []
-    third_place_teams = []
-
-    for group_name, ranked_teams in group_results.items():
-        group_winners.append(ranked_teams[0][0])
-        runners_up.append(ranked_teams[1][0])
-
-        third_place_team, third_place_stats = ranked_teams[2]
-
-        third_place_teams.append(
-            (
-                third_place_team,
-                third_place_stats,
-                group_name,
-            )
-        )
-
-    third_place_teams.sort(
-        key=lambda item: (
-            item[1]["points"],
-            item[1]["goal_difference"],
-            item[1]["goals_for"],
-            item[0],
-        ),
-        reverse=True,
-    )
-
-    best_third_place_teams = [
-        team
-        for team, stats, group_name
-        in third_place_teams[:8]
-    ]
-
-    qualified_teams = (
-        group_winners
-        + runners_up
-        + best_third_place_teams
-    )
-
-    return {
-        "group_winners": group_winners,
-        "runners_up": runners_up,
-        "best_third_place": best_third_place_teams,
-        "all_qualified": qualified_teams,
-    }
 
 
 
@@ -1032,7 +983,6 @@ def create_final_match(semifinal_winners):
 
 
 
-
 def simulate_tournament(
     tournament_teams,
     model,
@@ -1052,8 +1002,7 @@ def simulate_tournament(
         runner_up
     """
 
-    # Copy the historical match histories.
-    # Each tournament can then modify its own copy.
+    # Copy historical match histories.
     histories = defaultdict(
         lambda: deque(maxlen=FORM_WINDOW),
         {
@@ -1066,7 +1015,7 @@ def simulate_tournament(
         },
     )
 
-    # Copy the historical Elo ratings.
+    # Copy Elo ratings.
     elo_ratings = defaultdict(
         lambda: INITIAL_ELO,
         dict(base_elo_ratings),
@@ -1094,24 +1043,66 @@ def simulate_tournament(
 
         group_results[group_name] = ranked_teams
 
+    qualified = get_qualified_teams(group_results)
+
     if show_output:
         print("\n===================================")
         print("          GROUP STAGE COMPLETE")
         print("===================================")
 
-        print("\nQualified teams:\n")
+        print("\nGroup Winners:")
+        for team in qualified["group_winners"]:
+            print(f"- {team}")
 
-        for group_name, ranked_teams in group_results.items():
-            group_winner = ranked_teams[0][0]
-            runner_up = ranked_teams[1][0]
+        print("\nRunners-up:")
+        for team in qualified["runners_up"]:
+            print(f"- {team}")
 
-            print(
-                f"Group {group_name}: "
-                f"{group_winner}, {runner_up}"
-            )
+        print("\nBest Third-Place Teams:")
+        for team in qualified["best_third_place"]:
+            print(f"- {team}")
 
-    quarterfinal_matches = create_quarterfinal_matches(
-        group_results
+        print(
+            f"\nTotal Qualified Teams: "
+            f"{len(qualified['all_qualified'])}"
+        )
+
+    # ---------------- Round of 32 ----------------
+
+    round_of_32_matches = create_round_of_32(
+        qualified["all_qualified"]
+    )
+
+    round_of_32_winners = simulate_knockout_round(
+        matches=round_of_32_matches,
+        round_name="Round of 32",
+        model=model,
+        feature_columns=feature_columns,
+        histories=histories,
+        elo_ratings=elo_ratings,
+        show_output=show_output,
+    )
+
+    # ---------------- Round of 16 ----------------
+
+    round_of_16_matches = create_next_round_matches(
+        round_of_32_winners
+    )
+
+    round_of_16_winners = simulate_knockout_round(
+        matches=round_of_16_matches,
+        round_name="Round of 16",
+        model=model,
+        feature_columns=feature_columns,
+        histories=histories,
+        elo_ratings=elo_ratings,
+        show_output=show_output,
+    )
+
+    # ---------------- Quarterfinals ----------------
+
+    quarterfinal_matches = create_next_round_matches(
+        round_of_16_winners
     )
 
     quarterfinal_winners = simulate_knockout_round(
@@ -1124,7 +1115,9 @@ def simulate_tournament(
         show_output=show_output,
     )
 
-    semifinal_matches = create_semifinal_matches(
+    # ---------------- Semifinals ----------------
+
+    semifinal_matches = create_next_round_matches(
         quarterfinal_winners
     )
 
@@ -1138,7 +1131,9 @@ def simulate_tournament(
         show_output=show_output,
     )
 
-    final_match = create_final_match(
+    # ---------------- Final ----------------
+
+    final_match = create_next_round_matches(
         semifinal_winners
     )
 
@@ -1175,8 +1170,42 @@ def simulate_tournament(
 
 
 
+def ensure_minimum_team_history(
+    tournament_teams,
+    histories,
+    elo_ratings,
+):
+    """
+    Ensure every tournament team has enough match history
+    to create the model's form features.
 
+    Missing matches are padded with neutral 1-1 draws.
+    """
 
+    neutral_match = {
+        "won": 0,
+        "drawn": 1,
+        "goals_scored": 1,
+        "goals_conceded": 1,
+        "points": 1,
+    }
+
+    for team in tournament_teams:
+        # Create an empty history if the team is not in the dataset.
+        if team not in histories:
+            histories[team] = deque(
+                maxlen=FORM_WINDOW
+            )
+
+        # Add neutral matches until the team has five matches.
+        while len(histories[team]) < FORM_WINDOW:
+            histories[team].appendleft(
+                neutral_match.copy()
+            )
+
+        # Give teams without an Elo rating the default Elo.
+        if team not in elo_ratings:
+            elo_ratings[team] = INITIAL_ELO
 
 
 
@@ -1194,13 +1223,19 @@ def main():
         histories,
         elo_ratings,
         known_teams,
-    ) = build_current_team_states(match_data)
+    ) = build_current_team_states(
+        match_data
+    )
+
+    tournament_teams = WORLD_CUP_2026_TEAMS
+
+    ensure_minimum_team_history(
+        tournament_teams=tournament_teams,
+        histories=histories,
+        elo_ratings=elo_ratings,
+    )
 
     print("Ready.")
-
-    tournament_teams = ask_for_teams(
-        known_teams
-    )
 
     simulate_tournament(
         tournament_teams=tournament_teams,
