@@ -39,7 +39,7 @@ def main():
 
     print("Ready.")
 
-    simulations = 1000
+    simulations = 300
 
     champion_counts = Counter()
     runner_up_counts = Counter()
