@@ -1,10 +1,7 @@
 venv/
-__pycache__/
+**/__pycache__/
 *.pyc
 .DS_Store
-
-models/*.pkl
-models/*.joblib
 
 profile.txt
 forme.txt

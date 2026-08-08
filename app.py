@@ -6,11 +6,21 @@ from contextlib import redirect_stdout
 import pandas as pd
 import streamlit as st
 
+
+# =========================================================
+# PATH SETUP
+# =========================================================
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+
+
+# =========================================================
+# PROJECT IMPORTS
+# =========================================================
 
 from predict import (
     build_current_team_states,
@@ -27,6 +37,11 @@ from world_cup_simulator import (
     simulate_tournament,
 )
 
+
+# =========================================================
+# FILE PATHS
+# =========================================================
+
 SIMULATION_RESULTS_FILE = (
     PROJECT_ROOT
     / "data"
@@ -34,11 +49,21 @@ SIMULATION_RESULTS_FILE = (
     / "world_cup_1000_simulations.csv"
 )
 
+
+# =========================================================
+# STREAMLIT CONFIG
+# =========================================================
+
 st.set_page_config(
     page_title="World Cup 2026 Predictor",
     page_icon="⚽",
     layout="wide",
 )
+
+
+# =========================================================
+# LOAD MODEL + DATA
+# =========================================================
 
 @st.cache_resource
 def load_resources():
@@ -66,13 +91,165 @@ def load_resources():
         known_teams,
     )
 
+
 @st.cache_data
 def load_simulation_results():
     if not SIMULATION_RESULTS_FILE.exists():
         return None
+
     return pd.read_csv(SIMULATION_RESULTS_FILE)
 
-with st.spinner("Loading model and historical match data..."):
+
+# =========================================================
+# TOURNAMENT OUTPUT PARSING
+# =========================================================
+
+def split_tournament_output(output_text):
+    """
+    Split tournament terminal output into sections
+    so Streamlit can display each round separately.
+    """
+
+    sections = {}
+
+    current_section = "Tournament Groups"
+    sections[current_section] = []
+
+    lines = output_text.splitlines()
+
+    for line in lines:
+        clean_line = line.strip()
+
+        if clean_line in {
+            "TOURNAMENT GROUPS",
+            "GROUP STAGE COMPLETE",
+            "ROUND OF 32",
+            "ROUND OF 16",
+            "QUARTERFINALS",
+            "SEMIFINALS",
+            "FINAL",
+            "TOURNAMENT COMPLETE",
+        }:
+            current_section = clean_line.title()
+
+            if current_section not in sections:
+                sections[current_section] = []
+
+            continue
+
+        if (
+            clean_line.startswith("GROUP ")
+            and len(clean_line) == 7
+        ):
+            current_section = clean_line.title()
+
+            if current_section not in sections:
+                sections[current_section] = []
+
+            continue
+
+        if clean_line and not set(clean_line) == {"="}:
+            sections[current_section].append(line)
+
+    return sections
+
+
+def parse_group_section(section_text):
+    """
+    Split one group section into:
+    - match results
+    - standings table
+    """
+
+    lines = section_text.splitlines()
+
+    match_lines = []
+    standings_rows = []
+
+    table_started = False
+
+    for line in lines:
+        clean_line = line.strip()
+
+        if "Standings" in clean_line:
+            continue
+
+        if (
+            clean_line.startswith("Pos")
+            and "Team" in clean_line
+            and "Pts" in clean_line
+        ):
+            table_started = True
+            continue
+
+        if (
+            table_started
+            and clean_line
+            and set(clean_line) == {"-"}
+        ):
+            continue
+
+        if table_started:
+            if not clean_line:
+                continue
+
+            parts = clean_line.split()
+
+            if len(parts) >= 10:
+                try:
+                    position = int(parts[0])
+
+                    played = int(parts[-8])
+                    wins = int(parts[-7])
+                    draws = int(parts[-6])
+                    losses = int(parts[-5])
+                    goals_for = int(parts[-4])
+                    goals_against = int(parts[-3])
+                    goal_difference = int(parts[-2])
+                    points = int(parts[-1])
+
+                    team = " ".join(
+                        parts[1:-8]
+                    )
+
+                    standings_rows.append(
+                        {
+                            "Pos": position,
+                            "Team": team,
+                            "P": played,
+                            "W": wins,
+                            "D": draws,
+                            "L": losses,
+                            "GF": goals_for,
+                            "GA": goals_against,
+                            "GD": goal_difference,
+                            "Pts": points,
+                        }
+                    )
+
+                except ValueError:
+                    pass
+
+        else:
+            if clean_line:
+                match_lines.append(
+                    clean_line
+                )
+
+    standings_df = pd.DataFrame(
+        standings_rows
+    )
+
+    return match_lines, standings_df
+
+
+# =========================================================
+# LOAD RESOURCES
+# =========================================================
+
+with st.spinner(
+    "Loading model and historical match data..."
+):
     (
         model,
         feature_columns,
@@ -82,7 +259,13 @@ with st.spinner("Loading model and historical match data..."):
         known_teams,
     ) = load_resources()
 
+
 simulation_results = load_simulation_results()
+
+
+# =========================================================
+# SIDEBAR NAVIGATION
+# =========================================================
 
 st.sidebar.title("⚽ World Cup Predictor")
 
@@ -105,7 +288,13 @@ st.sidebar.caption(
     "recent form, and Monte Carlo simulation."
 )
 
+
+# =========================================================
+# HOME
+# =========================================================
+
 if page == "Home":
+
     st.title("⚽ FIFA World Cup 2026 Predictor")
 
     st.write(
@@ -123,18 +312,31 @@ if page == "Home":
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("World Cup Teams", len(WORLD_CUP_2026_TEAMS))
+        st.metric(
+            "World Cup Teams",
+            len(WORLD_CUP_2026_TEAMS),
+        )
 
     with col2:
-        st.metric("Historical Matches", f"{len(match_data):,}")
+        st.metric(
+            "Historical Matches",
+            f"{len(match_data):,}",
+        )
 
     with col3:
-        st.metric("ML Model", "Random Forest")
+        st.metric(
+            "ML Model",
+            "Random Forest",
+        )
 
     with col4:
-        st.metric("Monte Carlo Runs", "1,000")
+        st.metric(
+            "Monte Carlo Runs",
+            "1,000",
+        )
 
     st.divider()
+
     st.subheader("What You Can Do")
 
     feature_col1, feature_col2 = st.columns(2)
@@ -169,15 +371,24 @@ if page == "Home":
         )
 
     st.divider()
+
     st.subheader("2026 World Cup Teams")
 
     team_columns = st.columns(4)
 
-    for index, team in enumerate(WORLD_CUP_2026_TEAMS):
+    for index, team in enumerate(
+        WORLD_CUP_2026_TEAMS
+    ):
         with team_columns[index % 4]:
             st.write(f"• {team}")
 
+
+# =========================================================
+# MATCH PREDICTOR
+# =========================================================
+
 elif page == "Match Predictor":
+
     st.title("⚔️ Match Predictor")
 
     st.write(
@@ -193,43 +404,79 @@ elif page == "Match Predictor":
         home_team = st.selectbox(
             "Team 1",
             WORLD_CUP_2026_TEAMS,
-            index=WORLD_CUP_2026_TEAMS.index("Argentina"),
+            index=(
+                WORLD_CUP_2026_TEAMS.index(
+                    "Argentina"
+                )
+            ),
         )
 
     with team_col2:
         away_team = st.selectbox(
             "Team 2",
             WORLD_CUP_2026_TEAMS,
-            index=WORLD_CUP_2026_TEAMS.index("France"),
+            index=(
+                WORLD_CUP_2026_TEAMS.index(
+                    "France"
+                )
+            ),
         )
 
-    if st.button("Predict Match", type="primary", use_container_width=True):
+    if st.button(
+        "Predict Match",
+        type="primary",
+        use_container_width=True,
+    ):
+
         if home_team == away_team:
-            st.error("Please select two different teams.")
+            st.error(
+                "Please select two different teams."
+            )
+
         else:
             try:
-                feature_values = create_prediction_features(
-                    home_team=home_team,
-                    away_team=away_team,
-                    neutral=True,
-                    histories=histories,
-                    elo_ratings=elo_ratings,
+                feature_values = (
+                    create_prediction_features(
+                        home_team=home_team,
+                        away_team=away_team,
+                        neutral=True,
+                        histories=histories,
+                        elo_ratings=elo_ratings,
+                    )
                 )
 
-                predicted_result, probabilities = predict_match(
+                (
+                    predicted_result,
+                    probabilities,
+                ) = predict_match(
                     model=model,
                     feature_columns=feature_columns,
                     feature_values=feature_values,
                 )
 
-                away_probability = probabilities.get(0, 0)
-                draw_probability = probabilities.get(1, 0)
-                home_probability = probabilities.get(2, 0)
+                away_probability = (
+                    probabilities.get(0, 0)
+                )
+
+                draw_probability = (
+                    probabilities.get(1, 0)
+                )
+
+                home_probability = (
+                    probabilities.get(2, 0)
+                )
 
                 st.divider()
-                st.subheader(f"{home_team} vs {away_team}")
 
-                result_col1, result_col2, result_col3 = st.columns(3)
+                st.subheader(
+                    f"{home_team} vs {away_team}"
+                )
+
+                (
+                    result_col1,
+                    result_col2,
+                    result_col3,
+                ) = st.columns(3)
 
                 with result_col1:
                     st.metric(
@@ -250,17 +497,37 @@ elif page == "Match Predictor":
                     )
 
                 if predicted_result == 2:
-                    st.success(f"Predicted outcome: {home_team} win")
+                    st.success(
+                        f"Predicted outcome: "
+                        f"{home_team} win"
+                    )
+
                 elif predicted_result == 0:
-                    st.success(f"Predicted outcome: {away_team} win")
+                    st.success(
+                        f"Predicted outcome: "
+                        f"{away_team} win"
+                    )
+
                 else:
-                    st.info("Predicted outcome: Draw")
+                    st.info(
+                        "Predicted outcome: Draw"
+                    )
 
             except Exception as error:
-                st.error(f"Prediction error: {error}")
+                st.error(
+                    f"Prediction error: {error}"
+                )
+
+
+# =========================================================
+# TOURNAMENT SIMULATOR
+# =========================================================
 
 elif page == "Tournament Simulator":
-    st.title("🏆 World Cup Tournament Simulator")
+
+    st.title(
+        "🏆 World Cup Tournament Simulator"
+    )
 
     st.write(
         """
@@ -282,54 +549,202 @@ elif page == "Tournament Simulator":
         type="primary",
         use_container_width=True,
     ):
+
         try:
-            with st.spinner("Simulating the complete World Cup..."):
+            with st.spinner(
+                "Simulating the complete World Cup..."
+            ):
+
                 captured_output = io.StringIO()
 
-                with redirect_stdout(captured_output):
-                    champion, runner_up = simulate_tournament(
-                        tournament_teams=WORLD_CUP_2026_TEAMS.copy(),
-                        model=model,
-                        feature_columns=feature_columns,
-                        base_histories=histories,
-                        base_elo_ratings=elo_ratings,
-                        show_output=True,
+                with redirect_stdout(
+                    captured_output
+                ):
+                    champion, runner_up = (
+                        simulate_tournament(
+                            tournament_teams=(
+                                WORLD_CUP_2026_TEAMS.copy()
+                            ),
+                            model=model,
+                            feature_columns=(
+                                feature_columns
+                            ),
+                            base_histories=histories,
+                            base_elo_ratings=(
+                                elo_ratings
+                            ),
+                            show_output=True,
+                        )
                     )
 
-                tournament_output = captured_output.getvalue()
+                tournament_output = (
+                    captured_output.getvalue()
+                )
 
-            st.session_state["tournament_champion"] = champion
-            st.session_state["tournament_runner_up"] = runner_up
-            st.session_state["tournament_output"] = tournament_output
+            st.session_state[
+                "tournament_champion"
+            ] = champion
+
+            st.session_state[
+                "tournament_runner_up"
+            ] = runner_up
+
+            st.session_state[
+                "tournament_output"
+            ] = tournament_output
 
         except Exception as error:
-            st.error(f"Tournament simulation error: {error}")
+            st.error(
+                f"Tournament simulation error: "
+                f"{error}"
+            )
 
-    if "tournament_champion" in st.session_state:
+    if (
+        "tournament_champion"
+        in st.session_state
+    ):
+
         st.divider()
 
-        champion = st.session_state["tournament_champion"]
-        runner_up = st.session_state["tournament_runner_up"]
+        champion = st.session_state[
+            "tournament_champion"
+        ]
 
-        st.subheader("Tournament Result")
+        runner_up = st.session_state[
+            "tournament_runner_up"
+        ]
 
-        champion_col, runner_col = st.columns(2)
-
-        with champion_col:
-            st.metric("🏆 World Cup Champion", champion)
-
-        with runner_col:
-            st.metric("🥈 Runner-up", runner_up)
-
-        st.success(
-            f"🏆 {champion} wins the simulated 2026 FIFA World Cup!"
+        st.subheader(
+            "Tournament Result"
         )
 
-        with st.expander("View Full Tournament Results"):
-            st.code(st.session_state["tournament_output"])
+        champion_col, runner_col = (
+            st.columns(2)
+        )
+
+        with champion_col:
+            st.metric(
+                "🏆 World Cup Champion",
+                champion,
+            )
+
+        with runner_col:
+            st.metric(
+                "🥈 Runner-up",
+                runner_up,
+            )
+
+        st.success(
+            f"🏆 {champion} wins the simulated "
+            "2026 FIFA World Cup!"
+        )
+
+        st.divider()
+
+        st.subheader(
+            "Tournament Breakdown"
+        )
+
+        tournament_sections = (
+            split_tournament_output(
+                st.session_state[
+                    "tournament_output"
+                ]
+            )
+        )
+
+        preferred_order = [
+            "Tournament Groups",
+            "Group A",
+            "Group B",
+            "Group C",
+            "Group D",
+            "Group E",
+            "Group F",
+            "Group G",
+            "Group H",
+            "Group I",
+            "Group J",
+            "Group K",
+            "Group L",
+            "Group Stage Complete",
+            "Round Of 32",
+            "Round Of 16",
+            "Quarterfinals",
+            "Semifinals",
+            "Final",
+            "Tournament Complete",
+        ]
+
+        for section_name in preferred_order:
+
+            if (
+                section_name
+                not in tournament_sections
+            ):
+                continue
+
+            section_text = "\n".join(
+                tournament_sections[
+                    section_name
+                ]
+            ).strip()
+
+            if not section_text:
+                continue
+
+            if (
+                section_name.startswith("Group ")
+                and len(section_name) == 7
+            ):
+                match_lines, standings_df = (
+                    parse_group_section(
+                        section_text
+                    )
+                )
+
+                with st.expander(
+                    section_name
+                ):
+                    if match_lines:
+                        st.markdown(
+                            "#### Match Results"
+                        )
+
+                        for match in match_lines:
+                            st.write(
+                                f"⚽ {match}"
+                            )
+
+                    if not standings_df.empty:
+                        st.markdown(
+                            "#### Standings"
+                        )
+
+                        st.dataframe(
+                            standings_df,
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+
+            else:
+                with st.expander(
+                    section_name
+                ):
+                    st.code(
+                        section_text
+                    )
+
+
+# =========================================================
+# CHAMPIONSHIP ODDS
+# =========================================================
 
 elif page == "Championship Odds":
-    st.title("📊 1,000-Simulation Championship Odds")
+
+    st.title(
+        "📊 1,000-Simulation Championship Odds"
+    )
 
     st.write(
         """
@@ -342,11 +757,19 @@ elif page == "Championship Odds":
 
     if simulation_results is None:
         st.warning(
-            "The 1,000-simulation results CSV could not be found."
+            "The 1,000-simulation results CSV "
+            "could not be found."
         )
-        st.write(f"Expected file: {SIMULATION_RESULTS_FILE}")
+
+        st.write(
+            f"Expected file: "
+            f"{SIMULATION_RESULTS_FILE}"
+        )
+
     else:
-        results = simulation_results.copy()
+        results = (
+            simulation_results.copy()
+        )
 
         probability_columns = [
             "championship_probability",
@@ -355,46 +778,70 @@ elif page == "Championship Odds":
         ]
 
         for column in probability_columns:
-            results[column] = results[column].round(2)
+            results[column] = (
+                results[column].round(2)
+            )
 
-        results = results.sort_values(
-            "championship_probability",
-            ascending=False,
-        ).reset_index(drop=True)
+        results = (
+            results.sort_values(
+                "championship_probability",
+                ascending=False,
+            )
+            .reset_index(
+                drop=True
+            )
+        )
 
         first = results.iloc[0]
         second = results.iloc[1]
         third = results.iloc[2]
 
-        st.subheader("Tournament Favorites")
+        st.subheader(
+            "Tournament Favorites"
+        )
 
-        favorite1, favorite2, favorite3 = st.columns(3)
+        (
+            favorite1,
+            favorite2,
+            favorite3,
+        ) = st.columns(3)
 
         with favorite1:
             st.metric(
                 "🥇 Highest Odds",
                 first["team"],
-                f"{first['championship_probability']:.2f}%",
+                (
+                    f"{first['championship_probability']:.2f}%"
+                ),
             )
 
         with favorite2:
             st.metric(
                 "🥈 Second Highest",
                 second["team"],
-                f"{second['championship_probability']:.2f}%",
+                (
+                    f"{second['championship_probability']:.2f}%"
+                ),
             )
 
         with favorite3:
             st.metric(
                 "🥉 Third Highest",
                 third["team"],
-                f"{third['championship_probability']:.2f}%",
+                (
+                    f"{third['championship_probability']:.2f}%"
+                ),
             )
 
         st.divider()
-        st.subheader("Championship Probability")
+
+        st.subheader(
+            "Championship Probability"
+        )
+
         st.caption(
-            "Top 15 teams by probability of winning the World Cup."
+            "Top 15 teams by probability "
+            "of winning the World Cup."
         )
 
         championship_chart = (
@@ -408,10 +855,15 @@ elif page == "Championship Odds":
             .set_index("team")
         )
 
-        st.bar_chart(championship_chart)
+        st.bar_chart(
+            championship_chart
+        )
 
         st.divider()
-        st.subheader("Probability of Reaching the Final")
+
+        st.subheader(
+            "Probability of Reaching the Final"
+        )
 
         final_chart = (
             results[
@@ -428,21 +880,29 @@ elif page == "Championship Odds":
             .set_index("team")
         )
 
-        st.bar_chart(final_chart)
+        st.bar_chart(
+            final_chart
+        )
 
         st.divider()
-        st.subheader("Full Monte Carlo Results")
 
-        display_results = results[
-            [
-                "team",
-                "championship_wins",
-                "championship_probability",
-                "runner_up_finishes",
-                "runner_up_probability",
-                "final_probability",
+        st.subheader(
+            "Full Monte Carlo Results"
+        )
+
+        display_results = (
+            results[
+                [
+                    "team",
+                    "championship_wins",
+                    "championship_probability",
+                    "runner_up_finishes",
+                    "runner_up_probability",
+                    "final_probability",
+                ]
             ]
-        ].copy()
+            .copy()
+        )
 
         display_results.columns = [
             "Team",
@@ -459,8 +919,16 @@ elif page == "Championship Odds":
             hide_index=True,
         )
 
+
+# =========================================================
+# ABOUT
+# =========================================================
+
 elif page == "About":
-    st.title("ℹ️ About the Project")
+
+    st.title(
+        "ℹ️ About the Project"
+    )
 
     st.write(
         """
@@ -470,7 +938,9 @@ elif page == "About":
         """
     )
 
-    st.subheader("Machine Learning Model")
+    st.subheader(
+        "Machine Learning Model"
+    )
 
     st.write(
         """
@@ -485,7 +955,9 @@ elif page == "About":
         """
     )
 
-    st.subheader("Prediction Features")
+    st.subheader(
+        "Prediction Features"
+    )
 
     st.write(
         """
@@ -503,7 +975,9 @@ elif page == "About":
         """
     )
 
-    st.subheader("Tournament Simulation")
+    st.subheader(
+        "Tournament Simulation"
+    )
 
     st.write(
         """
@@ -519,7 +993,9 @@ elif page == "About":
         """
     )
 
-    st.subheader("Monte Carlo Analysis")
+    st.subheader(
+        "Monte Carlo Analysis"
+    )
 
     st.write(
         """
@@ -533,14 +1009,19 @@ elif page == "About":
         """
     )
 
-    st.subheader("Project Stack")
+    st.subheader(
+        "Project Stack"
+    )
 
-    stack_col1, stack_col2 = st.columns(2)
+    stack_col1, stack_col2 = (
+        st.columns(2)
+    )
 
     with stack_col1:
         st.write(
             """
             **Machine Learning**
+
             - Python
             - pandas
             - scikit-learn
@@ -552,6 +1033,7 @@ elif page == "About":
         st.write(
             """
             **Application**
+
             - Streamlit
             - Historical match dataset
             - Elo rating system
