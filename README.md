@@ -2,15 +2,21 @@
 
 A machine learning-powered FIFA World Cup simulator that predicts individual match outcomes and simulates the complete 48-team tournament.
 
-Built using historical international football data, Elo ratings, recent team form, a Random Forest classifier, and Monte Carlo simulation.
+Built using **historical international football data, Elo ratings, recent team form, a Random Forest classifier, and Monte Carlo simulation**.
 
-The project also includes an interactive Streamlit application for exploring match predictions, tournament simulations, and championship probabilities.
+The project includes an interactive Streamlit application for predicting matches, simulating complete tournaments, and exploring championship probabilities.
+
+## 🌐 Live Demo
+
+**Try the deployed application here:**
+
+[Launch FIFA World Cup 2026 Predictor](https://football-predictor-kr9foj8794qjm2vlplmf4h.streamlit.app/)
 
 ---
 
 ## 🏆 1,000 World Cup Simulations
 
-The complete 2026 World Cup was simulated **1,000 times** to estimate each team's probability of becoming world champion.
+To estimate each team's chances of winning the tournament, the complete 2026 World Cup was simulated **1,000 times**.
 
 | Rank | Team | Championships | Win Probability | Final Probability |
 |------|------|--------------:|----------------:|------------------:|
@@ -25,7 +31,9 @@ The complete 2026 World Cup was simulated **1,000 times** to estimate each team'
 | 9 | Japan | 34 | **3.40%** | 7.00% |
 | 10 | England | 34 | **3.40%** | 7.90% |
 
-According to the model, **Argentina enters the tournament as the strongest favorite**, winning 194 of the 1,000 simulated tournaments.
+According to the simulation, **Argentina is the strongest favorite**, winning 194 of the 1,000 simulated tournaments for an estimated championship probability of **19.4%**.
+
+The complete results for all 48 teams are available in the Streamlit application.
 
 ---
 
@@ -54,13 +62,13 @@ Simulates the complete **48-team FIFA World Cup format**, including:
 - Final
 - World Cup champion
 
-Team form and Elo ratings are updated throughout the simulated tournament.
+Team form and Elo ratings are updated as the simulated tournament progresses.
 
 ### Monte Carlo Simulation
 
-The complete tournament can be simulated hundreds or thousands of times.
+The complete tournament can be simulated repeatedly to estimate long-term tournament probabilities.
 
-The project records:
+The simulation records:
 
 - Championship wins
 - Championship probability
@@ -68,39 +76,47 @@ The project records:
 - Runner-up probability
 - Probability of reaching the final
 
-Results from the 1,000-run experiment are saved and displayed directly inside the Streamlit application.
+The project currently includes results from **1,000 complete World Cup simulations**.
 
 ---
 
-## How the Model Works
+## How It Works
 
-The prediction pipeline is:
+The prediction pipeline:
 
 ```text
-Historical Match Data
-        ↓
-Feature Engineering
-        ↓
-Elo Ratings + Recent Form
-        ↓
-Random Forest Classifier
-        ↓
-Win / Draw / Loss Probabilities
-        ↓
-Match Simulation
-        ↓
-World Cup Tournament Simulation
-        ↓
-Monte Carlo Championship Probabilities
+Historical International Matches
+              ↓
+       Feature Engineering
+              ↓
+   Elo Ratings + Recent Form
+              ↓
+    Random Forest Classifier
+              ↓
+ Win / Draw / Loss Probabilities
+              ↓
+        Match Simulation
+              ↓
+   World Cup Tournament Logic
+              ↓
+     Monte Carlo Simulation
+              ↓
+ Championship Probabilities
 ```
 
-### Model
+For each match, the model estimates the probability of a **home/team 1 win, draw, or away/team 2 win**.
 
-The project uses a **Random Forest classifier** trained on historical international football matches.
+These probabilities are then used by the tournament simulator to generate match results and progress teams through the competition.
 
-Training/testing uses a chronological split rather than randomly mixing past and future matches.
+---
 
-The trained model achieved approximately:
+## Machine Learning Model
+
+The project uses a **Random Forest classifier** trained on historical international football results.
+
+A chronological train/test split is used so that the model is trained on earlier matches and evaluated on later matches rather than randomly mixing past and future results.
+
+### Model Performance
 
 ```text
 Accuracy: 56.63%
@@ -111,13 +127,13 @@ Draw                0.29       0.26    0.27
 Home Win            0.69       0.68    0.69
 ```
 
-Predicting draws remains the most difficult class, while home wins are predicted considerably more reliably.
+Draws are the most difficult outcome for the model to predict, while home wins are predicted more reliably.
 
 ---
 
 ## Feature Engineering
 
-The model uses team-strength and recent-form features including:
+Predictions are based on features representing team strength and recent performance, including:
 
 - Elo rating
 - Elo rating difference
@@ -129,34 +145,74 @@ The model uses team-strength and recent-form features including:
 - Recent goal difference
 - Neutral venue indicator
 
-The most influential feature during training was **Elo rating difference**.
+During model training, **Elo rating difference** was the most influential feature.
+
+### Elo Ratings
+
+Elo ratings provide a continuously updated measure of team strength.
+
+After each simulated match, the ratings can change based on the result, allowing the tournament simulation to maintain an evolving representation of team strength.
+
+### Recent Form
+
+The model also considers recent team performance rather than relying only on long-term historical strength.
+
+This includes results, points, goals scored, and goals conceded across recent matches.
+
+---
+
+## Tournament Simulation
+
+The simulator follows the 48-team World Cup structure.
+
+```text
+48 Teams
+   ↓
+12 Groups of 4
+   ↓
+Group Stage
+   ↓
+32 Qualified Teams
+   ↓
+Round of 32
+   ↓
+Round of 16
+   ↓
+Quarterfinals
+   ↓
+Semifinals
+   ↓
+Final
+   ↓
+World Cup Champion
+```
+
+Group standings are calculated from simulated match results before qualifying teams advance into the knockout stage.
 
 ---
 
 ## Streamlit Application
 
-The project includes an interactive Streamlit dashboard with five sections:
+The interactive web application contains five sections:
 
-**Home**  
-Project overview and participating teams.
+### Home
+Overview of the project, model, tournament, and participating teams.
 
-**Match Predictor**  
-Predict a match between any two tournament teams.
+### Match Predictor
+Select two teams and view their predicted win/draw/loss probabilities.
 
-**Tournament Simulator**  
-Run a complete World Cup and inspect group standings and knockout results.
+### Tournament Simulator
+Run a complete World Cup simulation and inspect group standings and knockout results.
 
-**Championship Odds**  
-Explore results from the 1,000 Monte Carlo simulations through tables and charts.
+### Championship Odds
+Explore the results of the **1,000 Monte Carlo simulations** through tables and visualizations.
 
-**About**  
-Explanation of the model, features, and simulation methodology.
+### About
+Learn about the model, feature engineering, Elo ratings, and simulation methodology.
 
-Run the application locally with:
+You can use the deployed version here:
 
-```bash
-streamlit run app.py
-```
+[Open the Live Application](https://football-predictor-kr9foj8794qjm2vlplmf4h.streamlit.app/)
 
 ---
 
@@ -186,21 +242,24 @@ Football-Predictor/
     └── tournament_statistics.py
 ```
 
+### Main Files
+
 | File | Purpose |
 |------|---------|
-| `app.py` | Streamlit web application |
-| `train_model.py` | Trains and evaluates the Random Forest model |
-| `predict.py` | Creates prediction features and predicts matches |
-| `world_cup_teams.py` | Stores the 48 tournament teams |
-| `world_cup_groups.py` | Defines the tournament groups |
-| `world_cup_simulator.py` | Simulates the complete World Cup |
-| `tournament_statistics.py` | Runs Monte Carlo tournament simulations |
+| `app.py` | Runs the Streamlit web application |
+| `src/train_model.py` | Trains and evaluates the Random Forest model |
+| `src/predict.py` | Creates prediction features and predicts match outcomes |
+| `src/world_cup_teams.py` | Stores the 48 tournament teams |
+| `src/world_cup_groups.py` | Defines the 12 tournament groups |
+| `src/world_cup_simulator.py` | Handles group-stage and knockout tournament simulation |
+| `src/tournament_statistics.py` | Runs repeated Monte Carlo simulations and calculates tournament probabilities |
+| `world_cup_1000_simulations.csv` | Stores results from the 1,000-tournament experiment |
 
 ---
 
 ## Technology Stack
 
-**Machine Learning**
+### Machine Learning & Data
 
 - Python
 - pandas
@@ -209,28 +268,38 @@ Football-Predictor/
 - Random Forest
 - joblib
 
-**Application & Analysis**
+### Simulation & Application
 
-- Streamlit
 - Elo rating system
 - Monte Carlo simulation
+- Streamlit
 - Historical international football data
+
+### Deployment
+
+- GitHub
+- Streamlit Community Cloud
 
 ---
 
 ## Running Locally
 
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/AbdulMominAlam/Football-Predictor.git
 cd Football-Predictor
 ```
 
-Create a virtual environment:
+### 2. Create a virtual environment
 
 ```bash
 python3 -m venv venv
+```
+
+On macOS/Linux:
+
+```bash
 source venv/bin/activate
 ```
 
@@ -240,19 +309,21 @@ On Windows:
 venv\Scripts\activate
 ```
 
-Install dependencies:
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Start the Streamlit application:
+### 4. Start the Streamlit application
 
 ```bash
 streamlit run app.py
 ```
 
-Or run the Monte Carlo simulation directly:
+### 5. Run Monte Carlo simulations
+
+The tournament statistics script can also be run directly:
 
 ```bash
 python src/tournament_statistics.py
@@ -262,17 +333,20 @@ python src/tournament_statistics.py
 
 ## Limitations
 
-Football is highly unpredictable, and the model does not currently account for every factor that can affect a match.
+Football matches are highly unpredictable, and several real-world factors are not currently represented in the model.
 
-Examples include:
+These include:
 
 - Injuries and suspensions
 - Starting lineups
 - Player-level form
-- Managerial or tactical changes
+- Managerial changes
+- Tactical matchups
 - Travel and fatigue
-- Weather conditions
+- Weather and pitch conditions
 - Match-specific circumstances
+
+Historical results can also favor teams with strong past performance even when their current squads have changed significantly.
 
 The predictions should therefore be interpreted as **probabilistic estimates rather than guaranteed results**.
 
@@ -285,10 +359,13 @@ Potential improvements include:
 - Player-level statistics
 - Injury and suspension data
 - Live team rankings
-- Hyperparameter tuning and model comparison
+- Squad strength metrics
+- Host-country and venue effects
+- Hyperparameter tuning
+- Comparison with models such as XGBoost and neural networks
 - Parallelized Monte Carlo simulations
-- Automated model retraining
-- Additional international tournaments
+- Automated model retraining with new match results
+- Support for additional international tournaments
 
 ---
 
