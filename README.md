@@ -4,6 +4,8 @@ A machine learning-powered FIFA World Cup simulator that predicts individual mat
 
 Built using **historical international football data, Elo ratings, recent team form, a Random Forest classifier, and Monte Carlo simulation**.
 
+The model does not use any **2026 FIFA World Cup match results**, ensuring that the tournament's actual outcomes do not influence its predictions.
+
 The project includes an interactive Streamlit application for predicting matches, simulating complete tournaments, and exploring championship probabilities.
 
 ## 🌐 Live Demo
@@ -115,6 +117,14 @@ These probabilities are then used by the tournament simulator to generate match 
 The project uses a **Random Forest classifier** trained on historical international football results.
 
 A chronological train/test split is used so that the model is trained on earlier matches and evaluated on later matches rather than randomly mixing past and future results.
+
+### Prediction Integrity
+
+The model does **not use results from the 2026 FIFA World Cup itself** when generating match predictions, tournament simulations, or championship probabilities.
+
+This prevents the tournament's actual outcomes from leaking into the model and helps avoid **data leakage and look-ahead bias**.
+
+As a result, the Monte Carlo simulations represent genuine model-generated forecasts based on historical information rather than predictions influenced by actual World Cup results.
 
 ### Model Performance
 
