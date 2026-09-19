@@ -4,6 +4,7 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
+from re import match
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,6 +32,28 @@ COLUMNS = [
     "status",
 ]
 
+TEAM_NAMES = {
+    "AFC Bournemouth": "Bournemouth",
+    "Arsenal FC": "Arsenal",
+    "Aston Villa FC": "Aston Villa",
+    "Brentford FC": "Brentford",
+    "Brighton & Hove Albion FC": "Brighton & Hove Albion",
+    "Chelsea FC": "Chelsea",
+    "Coventry City FC": "Coventry City",
+    "Crystal Palace FC": "Crystal Palace",
+    "Everton FC": "Everton",
+    "Fulham FC": "Fulham",
+    "Hull City AFC": "Hull City",
+    "Ipswich Town FC": "Ipswich Town",
+    "Leeds United FC": "Leeds United",
+    "Liverpool FC": "Liverpool",
+    "Manchester City FC": "Manchester City",
+    "Manchester United FC": "Manchester United",
+    "Newcastle United FC": "Newcastle United",
+    "Nottingham Forest FC": "Nottingham Forest",
+    "Sunderland AFC": "Sunderland",
+    "Tottenham Hotspur FC": "Tottenham Hotspur",
+}
 
 def full_time_score(match):
     score = match.get("score")
@@ -70,8 +93,8 @@ def main():
 
         for match in matches:
             match_date = date.fromisoformat(match["date"])
-            home_team = match["team1"]
-            away_team = match["team2"]
+            home_team = TEAM_NAMES.get(match["team1"], match["team1"])
+            away_team = TEAM_NAMES.get(match["team2"], match["team2"])
             fixture_key = (season, home_team, away_team)
 
             if home_team == away_team or fixture_key in seen_fixtures:
