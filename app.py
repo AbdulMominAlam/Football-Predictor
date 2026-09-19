@@ -31,6 +31,7 @@ from predict import (
 )
 
 from world_cup_teams import WORLD_CUP_2026_TEAMS
+from premier_league_teams import PREMIER_LEAGUE_2026_27_TEAMS, PREMIER_LEAGUE_PAGES
 
 from world_cup_simulator import (
     ensure_minimum_team_history,
@@ -55,9 +56,15 @@ SIMULATION_RESULTS_FILE = (
 # =========================================================
 
 st.set_page_config(
-    page_title="World Cup 2026 Predictor",
+    page_title="Football Predictor",
     page_icon="⚽",
     layout="wide",
+)
+
+st.sidebar.title("Football Predictor")
+competition = st.sidebar.selectbox(
+    "Competition",
+    ["FIFA World Cup 2026", "Premier League 2026-27"],
 )
 
 
@@ -247,53 +254,59 @@ def parse_group_section(section_text):
 # LOAD RESOURCES
 # =========================================================
 
-with st.spinner(
-    "Loading model and historical match data..."
-):
-    (
-        model,
-        feature_columns,
-        match_data,
-        histories,
-        elo_ratings,
-        known_teams,
-    ) = load_resources()
 
+if competition == "FIFA World Cup 2026":
+    with st.spinner("Loading model and historical match data..."):
+        (
+            model,
+            feature_columns,
+            match_data,
+            histories,
+            elo_ratings,
+            known_teams,
+        ) = load_resources()
 
-simulation_results = load_simulation_results()
+    simulation_results = load_simulation_results()
 
 
 # =========================================================
 # SIDEBAR NAVIGATION
 # =========================================================
 
-st.sidebar.title("⚽ World Cup Predictor")
-
-page = st.sidebar.radio(
-    "Navigation",
-    [
-        "Home",
-        "Match Predictor",
-        "Tournament Simulator",
-        "Championship Odds",
-        "About",
-    ],
-)
+if competition == "FIFA World Cup 2026":
+    page = st.sidebar.radio(
+        "Navigation",
+        ["Home", "Match Predictor", "Tournament Simulator", "Championship Odds", "About"],
+    )
+else:
+    page = st.sidebar.radio("Navigation", PREMIER_LEAGUE_PAGES)
 
 st.sidebar.divider()
 
-st.sidebar.caption(
-    "FIFA World Cup 2026 prediction project "
-    "using machine learning, Elo ratings, "
-    "recent form, and Monte Carlo simulation."
-)
+if competition == "FIFA World Cup 2026":
+    st.sidebar.caption(
+        "FIFA World Cup 2026 predictions using machine learning, "
+        "Elo ratings, recent form, and Monte Carlo simulation."
+    )
+else:
+    st.sidebar.caption("Premier League 2026-27 predictor under development.")
 
 
 # =========================================================
 # HOME
 # =========================================================
 
-if page == "Home":
+if competition == "Premier League 2026-27":
+    st.title(f"Premier League 2026-27: {page}")
+    st.info(
+        "The Premier League match model and season simulator are under development. "
+        "Predictions will appear here after the club-football model is trained."
+    )
+    if page == "Home":
+        st.subheader("2026-27 Teams")
+        st.write(", ".join(PREMIER_LEAGUE_2026_27_TEAMS))
+
+elif page == "Home":
 
     st.title("⚽ FIFA World Cup 2026 Predictor")
 
