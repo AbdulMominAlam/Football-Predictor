@@ -1,4 +1,4 @@
-# Football Predictor
+#⚽ Football Predictor
 
 A machine-learning football prediction platform supporting two competitions:
 
@@ -7,7 +7,7 @@ A machine-learning football prediction platform supporting two competitions:
 
 The project combines historical match data, Elo ratings, recent form, machine-learning classifiers, Poisson goal modeling, and Monte Carlo simulation. Its Streamlit application can predict individual matches, simulate complete competitions, and display long-term championship, qualification, and relegation probabilities.
 
-## Live Application
+## 🌐 Live Application
 
 [Launch the Football Predictor](https://football-predictor-kr9foj8794qjm2vlplmf4h.streamlit.app/)
 
