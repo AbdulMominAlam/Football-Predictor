@@ -1,4 +1,4 @@
-#⚽ Football Predictor
+## ⚽ Football Predictor
 
 A machine-learning football prediction platform supporting two competitions:
 
