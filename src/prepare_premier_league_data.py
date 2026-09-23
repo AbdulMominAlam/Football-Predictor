@@ -58,6 +58,17 @@ TEAM_NAMES = {
     "Nottingham Forest FC": "Nottingham Forest",
     "Sunderland AFC": "Sunderland",
     "Tottenham Hotspur FC": "Tottenham Hotspur",
+    "Burnley FC": "Burnley",
+    "Leicester City FC": "Leicester City",
+    "Luton Town FC": "Luton Town",
+    "Middlesbrough FC": "Middlesbrough",
+    "Norwich City FC": "Norwich City",
+    "Sheffield United FC": "Sheffield United",
+    "Southampton FC": "Southampton",
+    "Watford FC": "Watford",
+    "West Bromwich Albion FC": "West Bromwich Albion",
+    "West Ham United FC": "West Ham United",
+    "Wolverhampton Wanderers FC": "Wolverhampton Wanderers",
 }
 
 def full_time_score(match):
