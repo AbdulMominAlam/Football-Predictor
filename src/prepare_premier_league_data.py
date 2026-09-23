@@ -12,6 +12,11 @@ RAW_DIR = ROOT / "data" / "premier_league" / "raw"
 OUTPUT = ROOT / "data" / "premier_league" / "processed" / "matches.csv"
 
 SEASONS = [
+    "2015-16",
+    "2016-17",
+    "2017-18",
+    "2018-19",
+    "2019-20",
     "2020-21",
     "2021-22",
     "2022-23",
