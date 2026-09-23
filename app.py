@@ -32,6 +32,7 @@ from predict import (
 
 from world_cup_teams import WORLD_CUP_2026_TEAMS
 from premier_league_teams import PREMIER_LEAGUE_2026_27_TEAMS, PREMIER_LEAGUE_PAGES
+from premier_league_table import current_table
 
 from world_cup_simulator import (
     ensure_minimum_team_history,
@@ -297,14 +298,88 @@ else:
 # =========================================================
 
 if competition == "Premier League 2026-27":
-    st.title(f"Premier League 2026-27: {page}")
-    st.info(
-        "The Premier League match model and season simulator are under development. "
-        "Predictions will appear here after the club-football model is trained."
-    )
+
     if page == "Home":
-        st.subheader("2026-27 Teams")
-        st.write(", ".join(PREMIER_LEAGUE_2026_27_TEAMS))
+        st.title("Premier League 2026-27 Predictor")
+
+        st.write(
+            "Predict Premier League matches and simulate the "
+            "remaining season using machine learning."
+        )
+
+        standings = current_table()
+        standings_df = pd.DataFrame(standings)
+
+        standings_df.insert(
+            0,
+            "position",
+            range(1, len(standings_df) + 1),
+        )
+
+        standings_df = standings_df[
+            [
+                "position",
+                "team",
+                "played",
+                "won",
+                "drawn",
+                "lost",
+                "goals_for",
+                "goals_against",
+                "goal_difference",
+                "points",
+            ]
+        ]
+
+        standings_df.columns = [
+            "Pos",
+            "Team",
+            "P",
+            "W",
+            "D",
+            "L",
+            "GF",
+            "GA",
+            "GD",
+            "Pts",
+        ]
+
+        completed_matches = sum(
+            team["played"] for team in standings
+        ) // 2
+        remaining_matches = 380 - completed_matches
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Completed Matches", completed_matches)
+
+        with col2:
+            st.metric("Remaining Matches", remaining_matches)
+
+        with col3:
+            st.metric("Simulation Runs", "1,000")
+
+        st.subheader("Current League Table")
+
+        st.dataframe(
+            standings_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Standings are based on the latest downloaded "
+            "2026-27 match data."
+        )
+
+    else:
+        st.title(f"Premier League 2026-27: {page}")
+
+        st.info(
+            "This feature will become available after the "
+            "Premier League prediction model is trained."
+        )
 
 elif page == "Home":
 
