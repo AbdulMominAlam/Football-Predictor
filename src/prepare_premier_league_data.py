@@ -71,6 +71,7 @@ TEAM_NAMES = {
     "Wolverhampton Wanderers FC": "Wolverhampton Wanderers",
 }
 
+
 def full_time_score(match):
     score = match.get("score")
 
