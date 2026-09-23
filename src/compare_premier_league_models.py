@@ -18,6 +18,7 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from premier_league_features import FEATURE_COLUMNS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -30,29 +31,7 @@ FEATURE_DATA_FILE = (
     / "model_features.csv"
 )
 
-FEATURE_COLUMNS = [
-    "home_elo",
-    "away_elo",
-    "elo_difference",
-    "home_win_rate",
-    "away_win_rate",
-    "win_rate_difference",
-    "home_draw_rate",
-    "away_draw_rate",
-    "draw_rate_difference",
-    "home_points_per_match",
-    "away_points_per_match",
-    "points_per_match_difference",
-    "home_goals_scored",
-    "away_goals_scored",
-    "goals_scored_difference",
-    "home_goals_conceded",
-    "away_goals_conceded",
-    "goals_conceded_difference",
-    "home_goal_difference",
-    "away_goal_difference",
-    "recent_goal_difference_difference",
-]
+
 
 TARGET_COLUMN = "target"
 
