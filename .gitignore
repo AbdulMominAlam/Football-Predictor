@@ -1,7 +1,28 @@
+# Virtual environments
 venv/
+.venv/
+
+# Python cache and test files
 **/__pycache__/
 *.pyc
-.DS_Store
+*.pyo
+.pytest_cache/
+.coverage
 
+# Environment variables and secrets
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Editor and operating-system files
+.DS_Store
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
 profile.txt
 forme.txt
+
+# Temporary simulation results
+data/premier_league/processed/premier_league_10_simulations.csv
