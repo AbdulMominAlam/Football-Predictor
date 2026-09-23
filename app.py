@@ -31,6 +31,10 @@ from predict import (
 )
 
 from world_cup_teams import WORLD_CUP_2026_TEAMS
+from premier_league_teams import PREMIER_LEAGUE_2026_27_TEAMS
+from premier_league_table import current_table
+from premier_league_predict import predict_match as predict_premier_league_match
+from premier_league_simulator import simulate_season as simulate_premier_league_season
 
 from world_cup_simulator import (
     ensure_minimum_team_history,
@@ -49,15 +53,29 @@ SIMULATION_RESULTS_FILE = (
     / "world_cup_1000_simulations.csv"
 )
 
+PREMIER_LEAGUE_RESULTS_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "premier_league"
+    / "processed"
+    / "premier_league_1000_simulations.csv"
+)
+
 
 # =========================================================
 # STREAMLIT CONFIG
 # =========================================================
 
 st.set_page_config(
-    page_title="World Cup 2026 Predictor",
+    page_title="Football Predictor",
     page_icon="⚽",
     layout="wide",
+)
+
+st.sidebar.title("Football Predictor")
+competition = st.sidebar.selectbox(
+    "Competition",
+    ["FIFA World Cup 2026", "Premier League 2026-27"],
 )
 
 
@@ -98,6 +116,14 @@ def load_simulation_results():
         return None
 
     return pd.read_csv(SIMULATION_RESULTS_FILE)
+
+
+@st.cache_data
+def load_premier_league_results():
+    if not PREMIER_LEAGUE_RESULTS_FILE.exists():
+        return None
+
+    return pd.read_csv(PREMIER_LEAGUE_RESULTS_FILE)
 
 
 # =========================================================
@@ -247,53 +273,561 @@ def parse_group_section(section_text):
 # LOAD RESOURCES
 # =========================================================
 
-with st.spinner(
-    "Loading model and historical match data..."
-):
-    (
-        model,
-        feature_columns,
-        match_data,
-        histories,
-        elo_ratings,
-        known_teams,
-    ) = load_resources()
 
+if competition == "FIFA World Cup 2026":
+    with st.spinner("Loading model and historical match data..."):
+        (
+            model,
+            feature_columns,
+            match_data,
+            histories,
+            elo_ratings,
+            known_teams,
+        ) = load_resources()
 
-simulation_results = load_simulation_results()
+    simulation_results = load_simulation_results()
 
 
 # =========================================================
 # SIDEBAR NAVIGATION
 # =========================================================
 
-st.sidebar.title("⚽ World Cup Predictor")
-
-page = st.sidebar.radio(
-    "Navigation",
-    [
-        "Home",
-        "Match Predictor",
-        "Tournament Simulator",
-        "Championship Odds",
-        "About",
-    ],
-)
+if competition == "FIFA World Cup 2026":
+    page = st.sidebar.radio(
+        "Navigation",
+        ["Home", "Match Predictor", "Tournament Simulator", "Championship Odds", "About"],
+    )
+else:
+    page = st.sidebar.radio(
+        "Navigation",
+        [
+            "Home",
+            "Match Predictor",
+            "Season Simulator",
+            "Season Odds",
+            "About",
+        ],
+    )
 
 st.sidebar.divider()
 
-st.sidebar.caption(
-    "FIFA World Cup 2026 prediction project "
-    "using machine learning, Elo ratings, "
-    "recent form, and Monte Carlo simulation."
-)
+if competition == "FIFA World Cup 2026":
+    st.sidebar.caption(
+        "FIFA World Cup 2026 predictions using machine learning, "
+        "Elo ratings, recent form, and Monte Carlo simulation."
+    )
+else:
+    st.sidebar.caption(
+        "Premier League 2026-27 predictions using Elo ratings, "
+        "recent form, machine learning, Poisson goals, and "
+        "Monte Carlo simulation."
+    )
 
 
 # =========================================================
 # HOME
 # =========================================================
 
-if page == "Home":
+if competition == "Premier League 2026-27":
+
+    if page == "Home":
+        st.title("Premier League 2026-27 Predictor")
+
+        st.write(
+            "Predict individual matches, simulate the remaining "
+            "season, and explore title, European qualification, "
+            "and relegation probabilities."
+        )
+
+        standings = current_table()
+        standings_df = pd.DataFrame(standings)
+
+        standings_df.insert(
+            0,
+            "position",
+            range(1, len(standings_df) + 1),
+        )
+
+        standings_df = standings_df[
+            [
+                "position",
+                "team",
+                "played",
+                "won",
+                "drawn",
+                "lost",
+                "goals_for",
+                "goals_against",
+                "goal_difference",
+                "points",
+            ]
+        ]
+
+        standings_df.columns = [
+            "Pos",
+            "Team",
+            "P",
+            "W",
+            "D",
+            "L",
+            "GF",
+            "GA",
+            "GD",
+            "Pts",
+        ]
+
+        completed_matches = sum(
+            team["played"] for team in standings
+        ) // 2
+        remaining_matches = 380 - completed_matches
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("Completed Matches", completed_matches)
+
+        with col2:
+            st.metric("Remaining Matches", remaining_matches)
+
+        with col3:
+            st.metric("Simulation Runs", "1,000")
+
+        st.subheader("Current League Table")
+
+        st.dataframe(
+            standings_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Standings are based on the latest downloaded "
+            "2026-27 match data."
+        )
+
+        st.divider()
+
+        st.subheader("What You Can Do")
+
+        feature_col1, feature_col2, feature_col3 = st.columns(3)
+
+        with feature_col1:
+            st.markdown(
+                """
+                ### Match Predictor
+
+                Compare two clubs and view win, draw, and loss
+                probabilities, expected goals, and a predicted score.
+                """
+            )
+
+        with feature_col2:
+            st.markdown(
+                """
+                ### Season Simulator
+
+                Simulate all 340 remaining fixtures while updating
+                team Elo ratings and recent form.
+                """
+            )
+
+        with feature_col3:
+            st.markdown(
+                """
+                ### Season Odds
+
+                Explore title, top-four, top-six, and relegation
+                probabilities from 1,000 full-season simulations.
+                """
+            )
+
+    elif page == "Match Predictor":
+        st.title("Premier League Match Predictor")
+
+        st.write(
+            "Select a home and away team to generate outcome "
+            "probabilities, expected goals, and a likely score."
+        )
+
+        team_col1, team_col2 = st.columns(2)
+
+        with team_col1:
+            home_team = st.selectbox(
+                "Home Team",
+                PREMIER_LEAGUE_2026_27_TEAMS,
+                index=PREMIER_LEAGUE_2026_27_TEAMS.index("Arsenal"),
+            )
+
+        with team_col2:
+            away_team = st.selectbox(
+                "Away Team",
+                PREMIER_LEAGUE_2026_27_TEAMS,
+                index=PREMIER_LEAGUE_2026_27_TEAMS.index(
+                    "Manchester City"
+                ),
+            )
+
+        if st.button(
+            "Predict Premier League Match",
+            type="primary",
+            use_container_width=True,
+        ):
+            if home_team == away_team:
+                st.error("Please select two different teams.")
+            else:
+                try:
+                    with st.spinner("Generating match prediction..."):
+                        prediction = predict_premier_league_match(
+                            home_team,
+                            away_team,
+                        )
+
+                    st.divider()
+                    st.subheader(f"{home_team} vs {away_team}")
+                    st.caption(
+                        f"Scheduled fixture date: "
+                        f"{prediction['match_date']}"
+                    )
+
+                    result_col1, result_col2, result_col3 = st.columns(3)
+
+                    with result_col1:
+                        st.metric(
+                            f"{home_team} Win",
+                            f"{prediction['home_win_probability']:.2%}",
+                        )
+
+                    with result_col2:
+                        st.metric(
+                            "Draw",
+                            f"{prediction['draw_probability']:.2%}",
+                        )
+
+                    with result_col3:
+                        st.metric(
+                            f"{away_team} Win",
+                            f"{prediction['away_win_probability']:.2%}",
+                        )
+
+                    score_col1, score_col2, score_col3 = st.columns(3)
+
+                    with score_col1:
+                        st.metric(
+                            "Predicted Outcome",
+                            prediction["most_likely_outcome_label"],
+                        )
+
+                    with score_col2:
+                        st.metric(
+                            "Predicted Score",
+                            prediction["predicted_score"],
+                        )
+
+                    with score_col3:
+                        st.metric(
+                            "Expected Goals",
+                            (
+                                f"{prediction['expected_home_goals']:.2f}"
+                                f" - "
+                                f"{prediction['expected_away_goals']:.2f}"
+                            ),
+                        )
+
+                    st.info(
+                        "Outcome probabilities come from the trained "
+                        "classifier. Expected goals and the predicted "
+                        "score come from the Poisson goal model."
+                    )
+
+                except Exception as error:
+                    st.error(f"Prediction error: {error}")
+
+    elif page == "Season Simulator":
+        st.title("Premier League Season Simulator")
+
+        st.write(
+            "Run one complete simulation of the remaining 2026-27 "
+            "season. The 40 completed matches are preserved and the "
+            "remaining 340 fixtures are simulated chronologically."
+        )
+
+        st.info(
+            "Each run is probabilistic. Elo ratings and recent form "
+            "are updated after every simulated match, so the final "
+            "table can change each time."
+        )
+
+        if st.button(
+            "Simulate Remaining Season",
+            type="primary",
+            use_container_width=True,
+        ):
+            try:
+                with st.spinner("Simulating 340 remaining fixtures..."):
+                    season_result = simulate_premier_league_season()
+
+                st.session_state["premier_league_season_result"] = (
+                    season_result
+                )
+
+            except Exception as error:
+                st.error(f"Season simulation error: {error}")
+
+        if "premier_league_season_result" in st.session_state:
+            season_result = st.session_state[
+                "premier_league_season_result"
+            ]
+            final_table = season_result["table"]
+            simulated_matches = season_result["simulated_matches"]
+
+            st.divider()
+
+            champion = final_table.iloc[0]["Team"]
+            top_four = ", ".join(final_table.head(4)["Team"].tolist())
+            relegated = ", ".join(final_table.tail(3)["Team"].tolist())
+
+            champion_col, top_four_col, relegation_col = st.columns(3)
+
+            with champion_col:
+                st.metric("Champion", champion)
+
+            with top_four_col:
+                st.metric("Fourth Place", final_table.iloc[3]["Team"])
+
+            with relegation_col:
+                st.metric("18th Place", final_table.iloc[17]["Team"])
+
+            st.success(f"{champion} wins this simulated season.")
+            st.write(f"**Top four:** {top_four}")
+            st.write(f"**Relegated:** {relegated}")
+
+            st.subheader("Simulated Final Table")
+            st.dataframe(
+                final_table,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            with st.expander("View all simulated fixtures"):
+                fixture_display = simulated_matches[
+                    [
+                        "date",
+                        "home_team",
+                        "home_goals",
+                        "away_goals",
+                        "away_team",
+                    ]
+                ].copy()
+
+                fixture_display.columns = [
+                    "Date",
+                    "Home Team",
+                    "Home Goals",
+                    "Away Goals",
+                    "Away Team",
+                ]
+
+                st.dataframe(
+                    fixture_display,
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+    elif page == "Season Odds":
+        st.title("Premier League 1,000-Simulation Odds")
+
+        st.write(
+            "The remaining 2026-27 season was simulated 1,000 times "
+            "to estimate title, top-four, top-six, and relegation "
+            "probabilities."
+        )
+
+        premier_league_results = load_premier_league_results()
+
+        if premier_league_results is None:
+            st.warning("The Premier League simulation CSV was not found.")
+            st.write(f"Expected file: {PREMIER_LEAGUE_RESULTS_FILE}")
+        else:
+            odds = premier_league_results.copy()
+
+            first = odds.iloc[0]
+            second = odds.iloc[1]
+            third = odds.iloc[2]
+
+            favorite1, favorite2, favorite3 = st.columns(3)
+
+            with favorite1:
+                st.metric(
+                    f"Highest Title Odds: {first['team']}",
+                    f"{first['title_probability']:.1%}",
+                )
+
+            with favorite2:
+                st.metric(
+                    f"Second Highest: {second['team']}",
+                    f"{second['title_probability']:.1%}",
+                )
+
+            with favorite3:
+                st.metric(
+                    f"Third Highest: {third['team']}",
+                    f"{third['title_probability']:.1%}",
+                )
+
+            st.divider()
+
+            chart_col1, chart_col2 = st.columns(2)
+
+            with chart_col1:
+                st.subheader("Title Probability")
+                title_chart = (
+                    odds[["team", "title_probability"]]
+                    .head(10)
+                    .set_index("team")
+                    * 100
+                )
+                st.bar_chart(title_chart)
+
+            with chart_col2:
+                st.subheader("Top-Four Probability")
+                top_four_chart = (
+                    odds[["team", "top_four_probability"]]
+                    .sort_values("top_four_probability", ascending=False)
+                    .head(10)
+                    .set_index("team")
+                    * 100
+                )
+                st.bar_chart(top_four_chart)
+
+            st.divider()
+
+            st.subheader("Relegation Probability")
+            relegation_chart = (
+                odds[["team", "relegation_probability"]]
+                .sort_values("relegation_probability", ascending=False)
+                .head(10)
+                .set_index("team")
+                * 100
+            )
+            st.bar_chart(relegation_chart)
+
+            st.divider()
+
+            st.subheader("Average Projected Table")
+            projected_table = odds.sort_values(
+                "average_position"
+            )[
+                [
+                    "team",
+                    "average_position",
+                    "average_points",
+                    "average_goal_difference",
+                    "title_probability",
+                    "top_four_probability",
+                    "top_six_probability",
+                    "relegation_probability",
+                ]
+            ].copy()
+
+            projected_table.insert(
+                0,
+                "projected_position",
+                range(1, len(projected_table) + 1),
+            )
+
+            projected_table.columns = [
+                "Projected Pos",
+                "Team",
+                "Avg Pos",
+                "Avg Pts",
+                "Avg GD",
+                "Title",
+                "Top Four",
+                "Top Six",
+                "Relegation",
+            ]
+
+            for column in ["Title", "Top Four", "Top Six", "Relegation"]:
+                projected_table[column] = projected_table[column].map(
+                    lambda value: f"{value:.1%}"
+                )
+
+            for column in ["Avg Pos", "Avg Pts", "Avg GD"]:
+                projected_table[column] = projected_table[column].round(2)
+
+            st.dataframe(
+                projected_table,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            st.caption(
+                "Probabilities are model-generated estimates based "
+                "on completed results through September 14, 2026."
+            )
+
+    elif page == "About":
+        st.title("About the Premier League Predictor")
+
+        st.write(
+            "This section predicts Premier League matches and "
+            "simulates the remaining 2026-27 season using results "
+            "from 2015-16 onward."
+        )
+
+        st.subheader("Prediction System")
+        st.markdown(
+            """
+            - Logistic Regression estimates home-win, draw, and
+              away-win probabilities.
+            - Elo ratings represent changing team strength.
+            - Five-match and ten-match form capture recent performance.
+            - A Poisson model estimates expected goals and scorelines.
+            - Features are calculated before each match to prevent
+              future-result leakage.
+            """
+        )
+
+        st.subheader("Model Evaluation")
+
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+
+        with metric_col1:
+            st.metric("Held-Out Accuracy", "49.47%")
+
+        with metric_col2:
+            st.metric("Baseline Accuracy", "42.63%")
+
+        with metric_col3:
+            st.metric("Completed Training Matches", "4,220")
+
+        st.write(
+            "The model was trained chronologically on earlier seasons "
+            "and evaluated on the unseen 2025-26 season. Accuracy "
+            "measures whether the most likely outcome matched the "
+            "actual home win, draw, or away win."
+        )
+
+        st.subheader("Season Simulation")
+        st.write(
+            "Each simulated fixture samples an outcome from the "
+            "classifier probabilities and then samples a compatible "
+            "score using the Poisson model. Team Elo ratings and form "
+            "are updated as the simulated season progresses."
+        )
+
+        st.subheader("Limitations")
+        st.markdown(
+            """
+            - Injuries, suspensions, lineups, transfers, and managers
+              are not modeled directly.
+            - Football outcomes contain substantial randomness.
+            - Early-season results can have a strong effect on forecasts.
+            - Probabilities are estimates, not guarantees.
+            """
+        )
+
+elif page == "Home":
 
     st.title("⚽ FIFA World Cup 2026 Predictor")
 
