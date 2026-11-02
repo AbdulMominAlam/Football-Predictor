@@ -11,6 +11,15 @@ The project combines historical match data, Elo ratings, recent form, machine-le
 
 [Launch the Football Predictor](https://football-predictor-kr9foj8794qjm2vlplmf4h.streamlit.app/)
 
+## Results Summary
+
+| Competition | Model | Evaluation | Accuracy | Baseline | Log Loss | Simulation Favourite |
+|---|---|---|---:|---:|---:|---|
+| Premier League 2026–27 | Logistic Regression + Poisson goals | Held-out 2025–26 season (380 matches) | **49.47%** | 42.63% | 1.0283 | Arsenal — 48.3% title |
+| FIFA World Cup 2026 | Random Forest | Held-out international matches | **56.63%** | — | — | Argentina — 19.4% win |
+
+The baseline always predicts the most common outcome. Simulation favourites come from 1,000 Monte Carlo runs; full tables are below.
+
 ## Competition Modes
 
 ### FIFA World Cup 2026
@@ -352,6 +361,15 @@ pip install -r requirements.txt
 ```bash
 streamlit run app.py
 ```
+
+### 5. Run the tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+The tests cover the Elo rating updates and feature engineering for both competitions, and run in GitHub Actions on every push and pull request.
 
 ## Rebuilding the Premier League Pipeline
 
